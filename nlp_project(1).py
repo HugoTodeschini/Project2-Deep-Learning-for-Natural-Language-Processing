@@ -31,15 +31,15 @@ import numpy as np
 import scipy
 
 
-# In[3]:
+# In[2]:
 
 
-PATH_TO_DATA = "/data/" # On avait "../../data/" dans le fichier fourni
+PATH_TO_DATA = "../data/" # On avait "../../data/" dans le fichier fourni
 
 
 # # 1) Monolingual (English) word embeddings 
 
-# In[128]:
+# In[3]:
 
 
 class Word2vec():
@@ -62,94 +62,114 @@ class Word2vec():
 
     def most_similar(self, w, K=5):
         # K most similar words: self.score  -  np.argsort
-        similarWords = np.array([[key,self.score(w, key)]for key in self.word2vec.keys()])
+        similarWords = np.array([[key,self.score(w, key)]for key in self.word2vec.keys() if w!=key])
         similarWords = similarWords[np.argsort(similarWords[:,1])]
         similarWords = similarWords[-K:,0]
-        return(similarWords)
+        return(np.flipud(similarWords))
 
     def score(self, w1, w2):
         # cosine similarity: np.dot  -  np.linalg.norm
         vec1 = self.word2vec[w1]
         vec2 = self.word2vec[w2]
         score = np.dot(vec1,vec2)/(np.linalg.norm(vec1)*np.linalg.norm(vec2))
-        return(score)
+        return(round(score,4))
 
 
-# In[106]:
+# In[4]:
 
 
-w2v = Word2vec(os.path.join(PATH_TO_DATA, 'crawl-300d-200k.vec'), nmax=10000)
-for w1 in ['cat']:
-    print(w2v.most_similar(w1))
-
-
-# In[117]:
-
-
-print('cat', 'SOAR', w2v.score('cat', 'SOAR'))
-print('cat', 'extensibility', w2v.score('cat', 'extensibility'))
-print('cat', 'cats', w2v.score('cat', 'cats'))
-
-
-# In[132]:
-
-
-w2v = Word2vec(os.path.join(PATH_TO_DATA, 'crawl-300d-200k.vec'), nmax=25000)
+w2v = Word2vec(os.path.join(PATH_TO_DATA, 'crawl-300d-200k.vec'), nmax=100000)
 
 # You will be evaluated on the output of the following:
-for w1, w2 in zip(('cat', 'cat', 'cat', 'cat'), ('cats', 'Cat', 'dog', 'Acts')):
-    print(w1, w2, w2v.score(w1, w2))
-for w1 in ['cat', 'dog', 'dogs']:
-    print(w2v.most_similar(w1))
-'''for w1, w2 in zip(('cat', 'dog', 'dogs', 'paris', 'germany'), ('dog', 'pet', 'cats', 'france', 'berlin')):
+for w1, w2 in zip(('cat', 'dog', 'dogs', 'paris', 'germany'), ('dog', 'pet', 'cats', 'france', 'berlin')):
     print(w1, w2, w2v.score(w1, w2))
 for w1 in ['cat', 'dog', 'dogs', 'paris', 'germany']:
-    print(w2v.most_similar(w1))'''
+    print(w2v.most_similar(w1))
 
 
-# In[7]:
+# In[9]:
 
 
 class BoV():
     def __init__(self, w2v):
         self.w2v = w2v
     
-    def encode(self, sentences, idf=False):
+    def encode(self, sentences, idf=False, sentence = False): #sentence est la phrase qu'on veut encoder c'est un string
         # takes a list of sentences, outputs a numpy array of sentence embeddings
-        # see TP1 for help
-        sentemb = []
-        return
+        sentemb = [] #array of sentences embeddings
+        listWords = []
         for sent in sentences:
-            if idf is False:
-                # mean of word vectors
-                assert False, 'TODO: fill in the blank'
-            else:
-                # idf-weighted mean of word vectors
-                assert False, 'TODO: fill in the blank'
+            sent = sent.split()
+            for word in sent:
+                listWords.append(word)
+        listWords = list(set(listWords)) #List which contains all words of the document
+        #We enter in this if only if we want to encode only one string
+        if sentence:
+            sent = sentence.split()
+            l = np.zeros(len(listWords)); #list which contain occurence of each word in a sentence
+            for word in enumerate(listWords):
+                if idf is False:
+                    # mean of word vectors
+                    for wordSentence in sent:
+                        if wordSentence == word[1]:
+                            l[word[0]] +=1
+                else:
+                    # idf-weighted mean of word vectors
+                    for wordSentence in sent:
+                        if wordSentence == word[1]:
+                            l[word[0]] +=idf[wordSentence]
+            sentemb.append(l)
+            return np.vstack(sentemb)
+        #We enter in this boucle when we want to encode all the file
+        for sent in sentences[:1000]: #We are interested in the first 100 sentences to limit the calcul
+            sent = sent.split()
+            l = np.zeros(len(listWords)); #list which contain occurence of each word in a sentence
+            for word in enumerate(listWords):
+                if idf is False:
+                    # mean of word vectors
+                    for wordSentence in sent:
+                        if wordSentence == word[1]:
+                            l[word[0]] +=1
+                else:
+                    # idf-weighted mean of word vectors
+                    for wordSentence in sent:
+                        if wordSentence == word[1]:
+                            l[word[0]] +=idf[wordSentence]
+            sentemb.append(l)
         return np.vstack(sentemb)
 
     def most_similar(self, s, sentences, idf=False, K=5):
         # get most similar sentences and **print** them
-        keys = self.encode(sentences, idf)
-        query = self.encode([s], idf)
-        return
+        sentencesVectors = self.encode(sentences, idf)
+        query = self.encode(sentences, idf, s)[0]
+        similarSentences = np.array([[indice,self.score(query, sentence)]for indice,sentence in enumerate(sentencesVectors)])
+        similarSentences = similarSentences[np.argsort(similarSentences[:,1])]
+        similarSentences = similarSentences[-K-1:-1,:]
+        similarSentences = np.flipud(similarSentences)
+        L = []
+        print("The ", str(K), " sentences the most similar to '", s, "' are:")
+        for i in similarSentences:  
+            print(sentences[int(i[0])])
+            L.append(sentences[int(i[0])])
+        return(L)
 
     def score(self, s1, s2, idf=False):
         # cosine similarity: use   np.dot  and  np.linalg.norm
-        return
+        score = np.dot(s1,s2)/(np.linalg.norm(s1)*np.linalg.norm(s2))
+        return(round(score,4))
     
     def build_idf(self, sentences):
         # build the idf dictionary: associate each word to its idf value
         idf = {}
-        return
-        # for sent in sentences:
-        #     for w in set(sent):
-        #         idf[w] = idf.get(w, 0) + 1
-        
-        # max(1, np.log10(len(sentences) / (idf[word])))
+        for sent in sentences:
+            for w in list(set(sent.split())):
+                idf[w] = idf.get(w, 0) + 1
+        for word in idf.keys():
+            idf[word] = max(1, np.log10(len(sentences) / (idf[word])))
+        return(idf)
 
 
-# In[8]:
+# In[10]:
 
 
 w2v = Word2vec(os.path.join(PATH_TO_DATA, 'crawl-300d-200k.vec'), nmax=5000)
@@ -157,18 +177,19 @@ s2v = BoV(w2v)
 
 # Load sentences in "PATH_TO_DATA/sentences.txt"
 sentences = []
+with io.open(os.path.join(PATH_TO_DATA, 'sentences.txt'), 'r') as file:
+    txt = file.read()
+sentences = txt.split("\n")
 
 # Build idf scores for each word
-idf = {} if True else s2v.build_idf(sentences)
+idf = s2v.build_idf(sentences)
 
 # You will be evaluated on the output of the following:
 s2v.most_similar('' if not sentences else sentences[10], sentences)  # BoV-mean
-s2v.score('' if not sentences else sentences[7], '' if not sentences else sentences[13])
+print(s2v.score('' if not sentences else s2v.encode(sentences, False, sentences[7])[0], '' if not sentences else s2v.encode(sentences, False, sentences[13])[0]))
 
-
-idf = {}  
 s2v.most_similar('' if not sentences else sentences[10], sentences, idf)  # BoV-idf
-s2v.score('' if not sentences else sentences[7], '' if not sentences else sentences[13], idf)
+print(s2v.score('' if not sentences else s2v.encode(sentences, idf, sentences[7])[0], '' if not sentences else s2v.encode(sentences, idf, sentences[13])[0], idf))
 
 
 # # 2) Multilingual (English-French) word embeddings
@@ -195,6 +216,7 @@ s2v.score('' if not sentences else sentences[7], '' if not sentences else senten
 #     https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.fr.vec
 
 # TYPE CODE HERE
+fr = load_wordvec()
 
 
 # In[2]:
